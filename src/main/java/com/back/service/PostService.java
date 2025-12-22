@@ -17,6 +17,10 @@ public class PostService {
 		return postRepository.count();
 	}
 
+	public Optional<Post> findById(int id) {
+		return postRepository.findById(id);
+	}
+
 	public Post write(Member author, String title, String content) {
 		Post post = new Post(author, title, content);
 
