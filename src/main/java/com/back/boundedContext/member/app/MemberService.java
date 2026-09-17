@@ -1,7 +1,7 @@
-package com.back.boundedContext.member.service;
+package com.back.boundedContext.member.app;
 
-import com.back.boundedContext.member.entity.Member;
-import com.back.boundedContext.member.repository.MemberRepository;
+import com.back.boundedContext.member.domain.Member;
+import com.back.boundedContext.member.out.MemberRepository;
 import com.back.global.exception.DomainException;
 import org.springframework.stereotype.Service;
 
