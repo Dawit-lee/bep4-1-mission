@@ -5,28 +5,28 @@ import com.back.boundedContext.post.domain.Post;
 import com.back.boundedContext.post.out.PostRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Optional;
 
 @Service
 @RequiredArgsConstructor
-public class PostService {
+public class PostFacade {
 	private final PostRepository postRepository;
+	private final PostWriteUseCase postWriteUseCase;
 
+	@Transactional(readOnly = true)
 	public long count() {
 		return postRepository.count();
 	}
 
-	public Optional<Post> findById(int id) {
-		return postRepository.findById(id);
+	@Transactional
+	public Post write(Member author, String title, String content) {
+		return postWriteUseCase.write(author, title, content);
 	}
 
-	public Post write(Member author, String title, String content) {
-		Post post = new Post(author, title, content);
-
-		//TODO : 이벤트 수정
-		author.increaseActivityScore(3);
-
-		return postRepository.save(post);
+	@Transactional(readOnly = true)
+	public Optional<Post> findById(int id) {
+		return postRepository.findById(id);
 	}
 }
