@@ -8,10 +8,10 @@ import org.springframework.stereotype.Service;
 import java.util.Optional;
 
 @Service
-public class MemberService {
+public class MemberFacade {
     private final MemberRepository memberRepository;
 
-    public MemberService(MemberRepository memberRepository) {
+    public MemberFacade(MemberRepository memberRepository) {
         this.memberRepository = memberRepository;
     }
 
