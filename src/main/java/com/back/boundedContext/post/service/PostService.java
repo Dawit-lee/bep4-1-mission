@@ -24,6 +24,7 @@ public class PostService {
 	public Post write(Member author, String title, String content) {
 		Post post = new Post(author, title, content);
 
+		//TODO : 이벤트 수정
 		author.increaseActivityScore(3);
 
 		return postRepository.save(post);

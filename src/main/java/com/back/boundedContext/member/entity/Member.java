@@ -4,10 +4,12 @@ import com.back.global.jpa.entity.BaseIdAndTime;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import lombok.NoArgsConstructor;
+import lombok.Getter;
 import org.hibernate.annotations.ColumnDefault;
 
 @Entity
 @NoArgsConstructor
+@Getter
 public class Member extends BaseIdAndTime {
 
     @Column(unique = true)
