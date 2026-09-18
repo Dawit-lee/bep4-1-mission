@@ -1,9 +1,12 @@
 package com.back.boundedContext.post.app;
 
+import com.back.boundedContext.post.domain.PostMember;
+import com.back.boundedContext.post.out.PostMemberRepository;
 import com.back.boundedContext.member.domain.Member;
 import com.back.boundedContext.post.domain.Post;
 import com.back.boundedContext.post.out.PostRepository;
 import com.back.global.rsData.RsData;
+import com.back.shared.member.dto.MemberDto;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -14,11 +17,14 @@ import java.util.Optional;
 @RequiredArgsConstructor
 public class PostFacade {
 	private final PostRepository postRepository;
+	private final PostMemberRepository postMemberRepository;
 	private final PostWriteUseCase postWriteUseCase;
 
 	@Transactional(readOnly = true)
 	public long count() {
 		return postRepository.count();
+
+
 	}
 
 	@Transactional
@@ -29,5 +35,20 @@ public class PostFacade {
 	@Transactional(readOnly = true)
 	public Optional<Post> findById(int id) {
 		return postRepository.findById(id);
+	}
+
+	@Transactional
+	public PostMember syncMember(MemberDto member) {
+		PostMember _member = new PostMember(
+				member.getUsername(),
+				"",
+				member.getNickname()
+		);
+
+		_member.setId(member.getId());
+		_member.setCreateDate(member.getCreateDate());
+		_member.setModifyDate(member.getModifyDate());
+
+		return postMemberRepository.save(_member);
 	}
 }
