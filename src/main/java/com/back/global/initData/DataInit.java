@@ -1,9 +1,9 @@
 package com.back.global.initData;
 
-import com.back.boundedContext.member.app.MemberFacade;
 import com.back.boundedContext.member.domain.Member;
-import com.back.boundedContext.post.app.PostFacade;
+import com.back.boundedContext.member.app.MemberFacade;
 import com.back.boundedContext.post.domain.Post;
+import com.back.boundedContext.post.app.PostFacade;
 import com.back.global.rsData.RsData;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.ApplicationRunner;
@@ -48,15 +48,15 @@ public class DataInit {
         Member user1Member = memberFacade.join("user1", "1234", "유저1").getData();
         Member user2Member = memberFacade.join("user2", "1234", "유저2").getData();
         Member user3Member = memberFacade.join("user3", "1234", "유저3").getData();
-    }
+        }
 
     @Transactional
     public void makeBasePosts() {
         if (postFacade.count() > 0) return;
 
-        Member user1Member = memberFacade.findByUsername("user1").get();
-        Member user2Member = memberFacade.findByUsername("user2").get();
-        Member user3Member = memberFacade.findByUsername("user3").get();
+            Member user1Member = memberFacade.findByUsername("user1").get();
+            Member user2Member = memberFacade.findByUsername("user2").get();
+            Member user3Member = memberFacade.findByUsername("user3").get();
 
         RsData<Post> post1RsData = postFacade.write(user1Member, "제목1", "내용1");
         log.debug(post1RsData.getMsg());
