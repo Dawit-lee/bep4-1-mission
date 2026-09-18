@@ -1,13 +1,13 @@
 package com.back.boundedContext.member.domain;
 
 import com.back.global.jpa.entity.BaseIdAndTime;
-import jakarta.persistence.Column;
-import jakarta.persistence.Entity;
+import jakarta.persistence.*;
 import lombok.NoArgsConstructor;
 import lombok.Getter;
 import org.hibernate.annotations.ColumnDefault;
 
 @Entity
+@Table(name = "MEMBER_MEMBER")
 @NoArgsConstructor
 @Getter
 public class Member extends BaseIdAndTime {
