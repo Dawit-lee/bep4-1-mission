@@ -6,11 +6,11 @@ import lombok.Getter;
 @AllArgsConstructor
 @Getter
 public class RsData<T> {
-	private final String resultCode;
-	private final String msg;
-	private final T data;
+    private final String resultCode;
+    private final String msg;
+    private final T data;
 
-	public RsData(String resultCode, String msg) {
-		this(resultCode, msg, null);
-	}
+    public RsData(String resultCode, String msg) {
+        this(resultCode, msg, null);
+    }
 }

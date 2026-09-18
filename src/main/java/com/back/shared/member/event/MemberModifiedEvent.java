@@ -6,6 +6,6 @@ import lombok.Getter;
 
 @Getter
 @AllArgsConstructor
-public class MemberJoinedEvent {
+public class MemberModifiedEvent {
     private final MemberDto member;
 }
