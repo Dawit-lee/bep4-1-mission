@@ -1,30 +1,23 @@
 package com.back.boundedContext.member.domain;
 
-import com.back.global.jpa.entity.BaseIdAndTime;
-import jakarta.persistence.*;
-import lombok.NoArgsConstructor;
+import com.back.shared.member.domain.SourceMember;
+import jakarta.persistence.Entity;
+import jakarta.persistence.Table;
 import lombok.Getter;
-import org.hibernate.annotations.ColumnDefault;
+import lombok.NoArgsConstructor;
 
 @Entity
 @Table(name = "MEMBER_MEMBER")
-@NoArgsConstructor
 @Getter
-public class Member extends BaseIdAndTime {
-
-    @Column(unique = true)
-    private String username;
-    private String password;
-    private String nickname;
-    @ColumnDefault("0")
-    private int activityScore;
-
+@NoArgsConstructor
+public class Member extends SourceMember {
     public Member(String username, String password, String nickname) {
-        this.username = username;
-        this.password = password;
-        this.nickname = nickname;
+        super(username, password, nickname);
     }
+
     public int increaseActivityScore(int amount) {
-        return this.activityScore += amount;
+        setActivityScore(getActivityScore() + amount);
+
+        return getActivityScore();
     }
 }
