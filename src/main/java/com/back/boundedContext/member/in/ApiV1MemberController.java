@@ -10,11 +10,11 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/api/v1/member/members")
 @RequiredArgsConstructor
 public class ApiV1MemberController {
-	private final MemberFacade memberFacade;
+    private final MemberFacade memberFacade;
 
-	@GetMapping("randomSecureTip")
-	public String getRandomSecureTip() {
-		return memberFacade
-				.getRandomSecureTip();
-	}
+    @GetMapping("randomSecureTip")
+    public String getRandomSecureTip() {
+        return memberFacade
+                .getRandomSecureTip();
+    }
 }

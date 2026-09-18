@@ -19,15 +19,15 @@ import static jakarta.persistence.GenerationType.IDENTITY;
 @Getter
 @NoArgsConstructor
 public abstract class SourceMember extends BaseMember {
-	@Id
-	@GeneratedValue(strategy = IDENTITY)
-	private int id;
-	@CreatedDate
-	private LocalDateTime createDate;
-	@LastModifiedDate
-	private LocalDateTime modifyDate;
+    @Id
+    @GeneratedValue(strategy = IDENTITY)
+    private int id;
+    @CreatedDate
+    private LocalDateTime createDate;
+    @LastModifiedDate
+    private LocalDateTime modifyDate;
 
-	public SourceMember(String username, String password, String nickname) {
-		super(username, password, nickname);
-	}
+    public SourceMember(String username, String password, String nickname) {
+        super(username, password, nickname);
+    }
 }

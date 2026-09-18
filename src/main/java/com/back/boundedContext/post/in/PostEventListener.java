@@ -13,11 +13,11 @@ import static org.springframework.transaction.event.TransactionPhase.AFTER_COMMI
 @Component
 @RequiredArgsConstructor
 public class PostEventListener {
-	private final PostFacade postFacade;
+    private final PostFacade postFacade;
 
-	@TransactionalEventListener(phase = AFTER_COMMIT)
-	@Transactional(propagation = REQUIRES_NEW)
-	public void handle(MemberJoinedEvent event) {
-		postFacade.syncMember(event.getMember());
-	}
+    @TransactionalEventListener(phase = AFTER_COMMIT)
+    @Transactional(propagation = REQUIRES_NEW)
+    public void handle(MemberJoinedEvent event) {
+        postFacade.syncMember(event.getMember());
+    }
 }

@@ -1,5 +1,6 @@
 package com.back.boundedContext.post.domain;
 
+
 import com.back.boundedContext.member.domain.Member;
 import com.back.global.jpa.entity.BaseIdAndTime;
 import com.back.shared.post.dto.PostCommentDto;
@@ -20,7 +21,6 @@ import static jakarta.persistence.FetchType.LAZY;
 @NoArgsConstructor
 @Getter
 public class Post extends BaseIdAndTime {
-
     @ManyToOne(fetch = LAZY)
     private Member author;
     private String title;
@@ -40,9 +40,8 @@ public class Post extends BaseIdAndTime {
 
         comments.add(postComment);
 
-        //TODO : 이벤트 수정
-
         publishEvent(new PostCommentCreatedEvent(new PostCommentDto(postComment)));
+
         return postComment;
     }
 
