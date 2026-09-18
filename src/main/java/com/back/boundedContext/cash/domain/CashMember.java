@@ -14,7 +14,7 @@ import java.time.LocalDateTime;
 @Getter
 @NoArgsConstructor
 public class CashMember extends ReplicaMember {
-	public CashMember(int id, LocalDateTime createDate, LocalDateTime modifyDate, String username, String password, String nickname, int activityScore) {
-		super(id, createDate, modifyDate, username, password, nickname, activityScore);
-	}
+    public CashMember(int id, LocalDateTime createDate, LocalDateTime modifyDate, String username, String password, String nickname, int activityScore) {
+        super(id, createDate, modifyDate, username, password, nickname, activityScore);
+    }
 }
