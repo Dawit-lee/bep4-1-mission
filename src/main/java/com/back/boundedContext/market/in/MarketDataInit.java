@@ -1,8 +1,10 @@
 package com.back.boundedContext.market.in;
 
 import com.back.boundedContext.market.app.MarketFacade;
+import com.back.boundedContext.market.domain.Cart;
 import com.back.boundedContext.market.domain.MarketMember;
 import com.back.boundedContext.market.domain.Product;
+import com.back.shared.market.dto.MarketMemberDto;
 import com.back.shared.post.dto.PostDto;
 import com.back.shared.post.out.PostApiClient;
 import lombok.extern.slf4j.Slf4j;
@@ -36,6 +38,7 @@ public class MarketDataInit {
     public ApplicationRunner marketDataInitApplicationRunner() {
         return args -> {
             self.makeBaseProducts();
+            self.makeBaseCartItems();
         };
     }
 
@@ -115,5 +118,43 @@ public class MarketDataInit {
                 35_000,
                 35_000
         );
+    }
+
+    @Transactional
+    public void makeBaseCartItems() {
+        MarketMember user1Member = marketFacade.findMemberByUsername("user1").get();
+        MarketMember user2Member = marketFacade.findMemberByUsername("user2").get();
+        MarketMember user3Member = marketFacade.findMemberByUsername("user3").get();
+
+        Cart cart1 = findOrCreateCart(user1Member);
+        Cart cart2 = findOrCreateCart(user2Member);
+        Cart cart3 = findOrCreateCart(user3Member);
+
+        Product product1 = marketFacade.findProductById(1).get();
+        Product product2 = marketFacade.findProductById(2).get();
+        Product product3 = marketFacade.findProductById(3).get();
+        Product product4 = marketFacade.findProductById(4).get();
+        if (!cart1.hasItems()) {
+            cart1.addItem(product1);
+            cart1.addItem(product2);
+            cart1.addItem(product3);
+            cart1.addItem(product4);
+        }
+
+        if (!cart2.hasItems()) {
+            cart2.addItem(product1);
+            cart2.addItem(product2);
+            cart2.addItem(product3);
+        }
+
+        if (!cart3.hasItems()) {
+            cart3.addItem(product1);
+            cart3.addItem(product2);
+        }
+    }
+
+    private Cart findOrCreateCart(MarketMember buyer) {
+        return marketFacade.findCartByBuyer(buyer)
+                .orElseGet(() -> marketFacade.createCart(new MarketMemberDto(buyer)).getData());
     }
 }

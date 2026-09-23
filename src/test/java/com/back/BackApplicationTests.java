@@ -1,5 +1,12 @@
 package com.back;
 
+import com.back.boundedContext.market.app.MarketFacade;
+import com.back.boundedContext.market.domain.CartItem;
+import com.back.boundedContext.market.out.CartRepository;
+import com.back.boundedContext.market.out.MarketMemberRepository;
+import com.back.shared.member.dto.MemberDto;
+import jakarta.persistence.EntityManager;
+import java.time.LocalDateTime;
 import com.back.boundedContext.market.domain.Product;
 import com.back.boundedContext.market.in.MarketDataInit;
 import com.back.boundedContext.market.out.ProductRepository;
@@ -29,6 +36,92 @@ class BackApplicationTests {
 
     @Autowired
     private MarketDataInit marketDataInit;
+
+    @Autowired
+    private MarketFacade marketFacade;
+
+    @Autowired
+    private CartRepository cartRepository;
+
+    @Autowired
+    private MarketMemberRepository marketMemberRepository;
+
+    @Autowired
+    private EntityManager entityManager;
+
+    @Test
+    void createsCartOnMemberCreationAndKeepsItOnMemberUpdate() {
+        int memberId = 1000;
+        LocalDateTime now = LocalDateTime.now();
+        try {
+            marketFacade.syncMember(new MemberDto(memberId, now, now, "cart-test", "구매자", 0));
+            var cart = cartRepository.findById(memberId).orElseThrow();
+            assertThat(cart.getBuyer().getId()).isEqualTo(memberId);
+            assertThat(cart.getItemsCount()).isZero();
+            assertThat(cart.hasItems()).isFalse();
+
+            marketFacade.syncMember(new MemberDto(memberId, now, now, "cart-test", "수정", 1));
+            assertThat(cartRepository.findById(memberId).orElseThrow().getCreateDate())
+                    .isEqualTo(cart.getCreateDate());
+        } finally {
+            cartRepository.findById(memberId).ifPresent(cartRepository::delete);
+            marketMemberRepository.findById(memberId).ifPresent(marketMemberRepository::delete);
+        }
+    }
+
+    @Test
+    @Transactional
+    void initializesCartItemsAndDoesNotDuplicateThem() {
+        marketDataInit.makeBaseCartItems();
+        entityManager.flush();
+        entityManager.clear();
+
+        for (int i = 1; i <= 3; i++) {
+            var buyer = marketFacade.findMemberByUsername("user" + i).orElseThrow();
+            var cart = marketFacade.findCartByBuyer(buyer).orElseThrow();
+            assertThat(cart.getId()).isEqualTo(buyer.getId());
+            assertThat(cart.getItemsCount()).isEqualTo(5 - i);
+            assertThat(cart.getItems()).hasSize(5 - i);
+            assertThat(cart.getItems()).extracting(item -> item.getProduct().getId())
+                    .containsExactlyInAnyOrderElementsOf(
+                            java.util.stream.IntStream.rangeClosed(1, 5 - i).boxed().toList());
+        }
+    }
+
+    @Test
+    @Transactional
+    void persistsAddedCartItemAndCount() {
+        var buyer = marketFacade.findMemberByUsername("user3").orElseThrow();
+        var cart = marketFacade.findCartByBuyer(buyer).orElseThrow();
+        int cartId = cart.getId();
+        cart.addItem(marketFacade.findProductById(6).orElseThrow());
+        entityManager.flush();
+        entityManager.clear();
+
+        var saved = cartRepository.findById(cartId).orElseThrow();
+        assertThat(saved.getItemsCount()).isEqualTo(3);
+        assertThat(saved.getItems()).extracting(item -> item.getProduct().getId())
+                .containsExactlyInAnyOrder(1, 2, 6);
+        assertThat(saved.getItems()).extracting(CartItem::getId).allMatch(id -> id > 0);
+    }
+
+    @Test
+    @Transactional
+    void initializesMissingCartForExistingMember() {
+        var buyer = marketFacade.findMemberByUsername("user2").orElseThrow();
+        int buyerId = buyer.getId();
+        cartRepository.delete(marketFacade.findCartByBuyer(buyer).orElseThrow());
+        entityManager.flush();
+        entityManager.clear();
+
+        marketDataInit.makeBaseCartItems();
+        entityManager.flush();
+        entityManager.clear();
+
+        var restored = cartRepository.findById(buyerId).orElseThrow();
+        assertThat(restored.getItemsCount()).isEqualTo(3);
+        assertThat(restored.getItems()).hasSize(3);
+    }
 
     @Test
     @Transactional
