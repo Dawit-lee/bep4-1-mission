@@ -26,10 +26,14 @@ import static jakarta.persistence.FetchType.LAZY;
 public class Order extends BaseIdAndTime {
     @ManyToOne(fetch = LAZY)
     private MarketMember buyer;
+    private LocalDateTime cancelDate;
     private LocalDateTime requestPaymentDate;
     private LocalDateTime paymentDate;
     private long price;
     private long salePrice;
+    private String tossPaymentKey;
+    private String tossOrderId;
+    private Long tossPaymentAmount;
 
     @OneToMany(mappedBy = "order", cascade = {PERSIST, REMOVE}, orphanRemoval = true)
     private List<OrderItem> items = new ArrayList<>();
@@ -66,6 +70,9 @@ public class Order extends BaseIdAndTime {
     }
 
     public void requestPayment(long pgPaymentAmount) {
+        if (isCanceled()) {
+            throw new DomainException("400-4", "이미 취소된 주문입니다.");
+        }
         if (pgPaymentAmount < 0) {
             throw new DomainException("400-1", "PG 결제 금액은 음수일 수 없습니다.");
         }
@@ -87,5 +94,19 @@ public class Order extends BaseIdAndTime {
 
     public void cancelRequestPayment() {
         requestPaymentDate = null;
+    }
+
+    public boolean isCanceled() {
+        return cancelDate != null;
+    }
+
+    public void recordTossPayment(String paymentKey, String orderId, long amount) {
+        tossPaymentKey = paymentKey;
+        tossOrderId = orderId;
+        tossPaymentAmount = amount;
+    }
+
+    public boolean isPaymentInProgress() {
+        return requestPaymentDate != null && paymentDate == null && cancelDate == null;
     }
 }
