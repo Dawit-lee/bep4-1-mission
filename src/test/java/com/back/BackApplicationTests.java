@@ -4,6 +4,7 @@ import com.back.boundedContext.market.app.MarketFacade;
 import com.back.boundedContext.market.domain.CartItem;
 import com.back.boundedContext.market.out.CartRepository;
 import com.back.boundedContext.market.out.MarketMemberRepository;
+import com.back.boundedContext.market.out.OrderRepository;
 import com.back.shared.member.dto.MemberDto;
 import jakarta.persistence.EntityManager;
 import java.time.LocalDateTime;
@@ -49,6 +50,96 @@ class BackApplicationTests {
     @Autowired
     private EntityManager entityManager;
 
+    @Autowired
+    private OrderRepository orderRepository;
+
+    @Test
+    @Transactional
+    void initializesThreeOrdersWithoutDuplicates() {
+        marketDataInit.makeBaseOrders();
+        assertThat(marketFacade.ordersCount()).isEqualTo(3);
+        assertThat(orderRepository.findAll()).allSatisfy(order -> {
+            String username = order.getBuyer().getUsername();
+            int expectedItems = switch (username) {
+                case "user1" -> 4;
+                case "user2" -> 3;
+                case "user3" -> 2;
+                default -> throw new AssertionError("Unexpected buyer: " + username);
+            };
+            long expectedPrice = switch (username) {
+                case "user1" -> 70_000L;
+                case "user2" -> 45_000L;
+                default -> 25_000L;
+            };
+            assertThat(order.getItems()).hasSize(expectedItems);
+            assertThat(order.getPrice()).isEqualTo(expectedPrice);
+            assertThat(order.getSalePrice()).isEqualTo(expectedPrice);
+        });
+        for (int i = 1; i <= 3; i++) {
+            var buyer = marketFacade.findMemberByUsername("user" + i).orElseThrow();
+            var cart = marketFacade.findCartByBuyer(buyer).orElseThrow();
+            assertThat(cart.getItemsCount()).isEqualTo(i == 1 ? 4 : 0);
+            assertThat(cart.getItems()).hasSize(i == 1 ? 4 : 0);
+        }
+    }
+
+    @Test
+    @Transactional
+    void persistsOrderAndRemovesCartItems() {
+        var buyer = marketFacade.findMemberByUsername("user1").orElseThrow();
+        var cart = marketFacade.findCartByBuyer(buyer).orElseThrow();
+        int cartId = cart.getId();
+        var result = marketFacade.createOrder(cart);
+        int orderId = result.getData().getId();
+        assertThat(result.getResultCode()).isEqualTo("201-1");
+        assertThat(result.getMsg()).isEqualTo(orderId + "번 주문이 생성되었습니다.");
+        entityManager.flush();
+        entityManager.clear();
+
+        var savedOrder = orderRepository.findById(orderId).orElseThrow();
+        assertThat(savedOrder.getBuyer().getId()).isEqualTo(cartId);
+        assertThat(savedOrder.getPrice()).isEqualTo(70_000L);
+        assertThat(savedOrder.getSalePrice()).isEqualTo(70_000L);
+        assertThat(savedOrder.getItems()).hasSize(4).allSatisfy(item -> {
+            assertThat(item.getId()).isPositive();
+            assertThat(item.getOrder().getId()).isEqualTo(orderId);
+            assertThat(item.getProductName()).isEqualTo(item.getProduct().getName());
+            assertThat(item.getPayoutRate()).isEqualTo(90);
+        });
+        var savedCart = cartRepository.findById(cartId).orElseThrow();
+        assertThat(savedCart.getItems()).isEmpty();
+        assertThat(savedCart.getItemsCount()).isZero();
+        assertThat(savedCart.hasItems()).isFalse();
+        assertThat(entityManager.createQuery(
+                "select count(i) from CartItem i where i.cart.id = :id", Long.class)
+                .setParameter("id", cartId).getSingleResult()).isZero();
+    }
+
+    @Test
+    @Transactional
+    void retainsOrderPricesWhenProductChanges() {
+        var buyer = marketFacade.findMemberByUsername("user3").orElseThrow();
+        var cart = marketFacade.findCartByBuyer(buyer).orElseThrow();
+        var product = marketFacade.createProduct(buyer, "Post", 99, "할인 상품", "설명", 20_000, 15_000);
+        cart.addItem(product);
+        int productId = product.getId();
+        int orderId = marketFacade.createOrder(cart).getData().getId();
+        entityManager.flush();
+        entityManager.createQuery("update Product p set p.name = :name, p.price = 30000, p.salePrice = 25000 where p.id = :id")
+                .setParameter("name", "변경된 상품").setParameter("id", productId).executeUpdate();
+        entityManager.clear();
+
+        var order = orderRepository.findById(orderId).orElseThrow();
+        assertThat(order.getPrice()).isEqualTo(20_000);
+        assertThat(order.getSalePrice()).isEqualTo(15_000);
+        assertThat(order.getItems()).singleElement().satisfies(item -> {
+            assertThat(item.getProductName()).isEqualTo("할인 상품");
+            assertThat(item.getPrice()).isEqualTo(20_000);
+            assertThat(item.getSalePrice()).isEqualTo(15_000);
+            assertThat(item.getProduct().getName()).isEqualTo("변경된 상품");
+        });
+    }
+
     @Test
     void createsCartOnMemberCreationAndKeepsItOnMemberUpdate() {
         int memberId = 1000;
@@ -91,6 +182,7 @@ class BackApplicationTests {
     @Test
     @Transactional
     void persistsAddedCartItemAndCount() {
+        marketDataInit.makeBaseCartItems();
         var buyer = marketFacade.findMemberByUsername("user3").orElseThrow();
         var cart = marketFacade.findCartByBuyer(buyer).orElseThrow();
         int cartId = cart.getId();

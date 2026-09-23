@@ -39,6 +39,7 @@ public class MarketDataInit {
         return args -> {
             self.makeBaseProducts();
             self.makeBaseCartItems();
+            self.makeBaseOrders();
         };
     }
 
@@ -156,5 +157,27 @@ public class MarketDataInit {
     private Cart findOrCreateCart(MarketMember buyer) {
         return marketFacade.findCartByBuyer(buyer)
                 .orElseGet(() -> marketFacade.createCart(new MarketMemberDto(buyer)).getData());
+    }
+
+    @Transactional
+    public void makeBaseOrders() {
+        if (marketFacade.ordersCount() > 0) return;
+
+        MarketMember user1 = marketFacade.findMemberByUsername("user1").orElseThrow();
+        MarketMember user2 = marketFacade.findMemberByUsername("user2").orElseThrow();
+        MarketMember user3 = marketFacade.findMemberByUsername("user3").orElseThrow();
+
+        Cart cart1 = marketFacade.findCartByBuyer(user1).orElseThrow();
+        Cart cart2 = marketFacade.findCartByBuyer(user2).orElseThrow();
+        Cart cart3 = marketFacade.findCartByBuyer(user3).orElseThrow();
+
+        marketFacade.createOrder(cart1);
+        marketFacade.createOrder(cart2);
+        marketFacade.createOrder(cart3);
+
+        // 첫 번째 회원의 장바구니에 초기 품목을 다시 담는다.
+        for (int productId = 1; productId <= 4; productId++) {
+            cart1.addItem(marketFacade.findProductById(productId).orElseThrow());
+        }
     }
 }
