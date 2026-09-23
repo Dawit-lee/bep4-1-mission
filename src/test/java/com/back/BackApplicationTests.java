@@ -5,6 +5,12 @@ import com.back.boundedContext.market.domain.CartItem;
 import com.back.boundedContext.market.out.CartRepository;
 import com.back.boundedContext.market.out.MarketMemberRepository;
 import com.back.boundedContext.market.out.OrderRepository;
+import com.back.boundedContext.cash.out.WalletRepository;
+import com.back.global.exception.DomainException;
+import com.back.shared.cash.event.CashOrderPaymentFailedEvent;
+import org.springframework.test.annotation.DirtiesContext;
+import org.springframework.test.context.event.ApplicationEvents;
+import org.springframework.test.context.event.RecordApplicationEvents;
 import com.back.shared.member.dto.MemberDto;
 import jakarta.persistence.EntityManager;
 import java.time.LocalDateTime;
@@ -20,7 +26,9 @@ import org.springframework.data.domain.Sort;
 import org.springframework.transaction.annotation.Transactional;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+@RecordApplicationEvents
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.DEFINED_PORT, properties = {
         "server.port=18080",
         "post.api.base-url=http://localhost:18080/api/v1/post",
@@ -52,6 +60,72 @@ class BackApplicationTests {
 
     @Autowired
     private OrderRepository orderRepository;
+
+    @Autowired
+    private WalletRepository walletRepository;
+
+    @Autowired
+    private ApplicationEvents applicationEvents;
+
+    @Test
+    void initializesPaidOrderOnlyOnce() {
+        var order = marketFacade.findOrderById(1).orElseThrow();
+        assertThat(order.isPaid()).isTrue();
+        assertThat(order.getRequestPaymentDate()).isNotNull();
+        assertThat(walletRepository.findByHolderId(4).orElseThrow().getBalance()).isEqualTo(230_000);
+        long holdingBalance = walletRepository.findByHolderId(2).orElseThrow().getBalance();
+        assertThat(holdingBalance).isEqualTo(70_000);
+        marketDataInit.makeBasePaidOrders();
+        assertThat(walletRepository.findByHolderId(2).orElseThrow().getBalance()).isEqualTo(holdingBalance);
+    }
+
+    @Test
+    @DirtiesContext(methodMode = DirtiesContext.MethodMode.AFTER_METHOD)
+    void paysFromWalletAndRejectsRepeatedPayment() {
+        var order = marketFacade.findOrderById(2).orElseThrow();
+        marketFacade.requestPayment(order, 0);
+
+        assertThat(marketFacade.findOrderById(2).orElseThrow().isPaid()).isTrue();
+        assertThat(walletRepository.findByHolderId(5).orElseThrow().getBalance()).isEqualTo(105_000);
+        assertThat(walletRepository.findByHolderId(2).orElseThrow().getBalance()).isEqualTo(115_000);
+        assertThatThrownBy(() -> marketFacade.requestPayment(order, 0))
+                .isInstanceOf(DomainException.class).hasMessageContaining("이미 결제된 주문");
+        assertThat(walletRepository.findByHolderId(5).orElseThrow().getBalance()).isEqualTo(105_000);
+        assertThat(walletRepository.findByHolderId(2).orElseThrow().getBalance()).isEqualTo(115_000);
+    }
+
+    @Test
+    @DirtiesContext(methodMode = DirtiesContext.MethodMode.AFTER_METHOD)
+    void reportsShortfallAndAllowsPaymentRetryAfterPgTopUp() {
+        var order = marketFacade.findOrderById(3).orElseThrow();
+        marketFacade.requestPayment(order, 10_000);
+
+        var unpaid = marketFacade.findOrderById(3).orElseThrow();
+        assertThat(unpaid.isPaid()).isFalse();
+        assertThat(unpaid.getRequestPaymentDate()).isNull();
+        assertThat(walletRepository.findByHolderId(6).orElseThrow().getBalance()).isEqualTo(10_000);
+        assertThat(walletRepository.findByHolderId(2).orElseThrow().getBalance()).isEqualTo(70_000);
+        assertThat(applicationEvents.stream(CashOrderPaymentFailedEvent.class).toList())
+                .singleElement().satisfies(event -> {
+                    assertThat(event.getShortfallAmount()).isEqualTo(15_000);
+                    assertThat(event.getMsg()).contains("3번 주문");
+                });
+
+        marketFacade.requestPayment(unpaid, 15_000);
+
+        assertThat(marketFacade.findOrderById(3).orElseThrow().isPaid()).isTrue();
+        assertThat(walletRepository.findByHolderId(6).orElseThrow().getBalance()).isZero();
+        assertThat(walletRepository.findByHolderId(2).orElseThrow().getBalance()).isEqualTo(95_000);
+    }
+
+    @Test
+    void rejectsNegativePgAmountWithoutChangingPaymentState() {
+        var order = marketFacade.findOrderById(3).orElseThrow();
+        assertThatThrownBy(() -> marketFacade.requestPayment(order, -1))
+                .isInstanceOf(DomainException.class).hasMessageContaining("음수");
+        assertThat(marketFacade.findOrderById(3).orElseThrow().getRequestPaymentDate()).isNull();
+        assertThat(walletRepository.findByHolderId(6).orElseThrow().getBalance()).isZero();
+    }
 
     @Test
     @Transactional

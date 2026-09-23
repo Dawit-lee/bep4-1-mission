@@ -40,6 +40,7 @@ public class MarketDataInit {
             self.makeBaseProducts();
             self.makeBaseCartItems();
             self.makeBaseOrders();
+            self.makeBasePaidOrders();
         };
     }
 
@@ -179,5 +180,12 @@ public class MarketDataInit {
         for (int productId = 1; productId <= 4; productId++) {
             cart1.addItem(marketFacade.findProductById(productId).orElseThrow());
         }
+    }
+
+    @Transactional
+    public void makeBasePaidOrders() {
+        var order = marketFacade.findOrderById(1).orElseThrow();
+        if (order.isPaid()) return;
+        marketFacade.requestPayment(order, 0);
     }
 }
