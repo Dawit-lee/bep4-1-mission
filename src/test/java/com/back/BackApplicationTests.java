@@ -9,6 +9,7 @@ import com.back.boundedContext.cash.out.WalletRepository;
 import com.back.global.exception.DomainException;
 import com.back.boundedContext.payout.app.PayoutFacade;
 import com.back.boundedContext.payout.out.PayoutMemberRepository;
+import com.back.boundedContext.payout.out.PayoutRepository;
 import com.back.shared.payout.event.PayoutMemberCreatedEvent;
 import com.back.shared.market.event.MarketOrderPaymentCompletedEvent;
 import com.back.shared.cash.event.CashOrderPaymentFailedEvent;
@@ -77,14 +78,34 @@ class BackApplicationTests {
     @Autowired
     private PayoutMemberRepository payoutMemberRepository;
 
+    @Autowired
+    private PayoutRepository payoutRepository;
+
+    @Test
+    void initializesOneEmptyPayoutForEachMember() {
+        assertThat(payoutMemberRepository.count()).isEqualTo(6);
+        var payouts = payoutRepository.findAll();
+        assertThat(payouts).hasSize(6);
+        assertThat(payouts).extracting(payout -> payout.getPayee().getId())
+                .containsExactlyInAnyOrder(1, 2, 3, 4, 5, 6);
+        assertThat(payouts).allSatisfy(payout -> {
+            assertThat(payout.getAmount()).isZero();
+            assertThat(payout.getPayoutDate()).isNull();
+        });
+    }
+
     @Test
     @DirtiesContext(methodMode = DirtiesContext.MethodMode.AFTER_METHOD)
     void createsPayoutMemberAndPublishesCreationOnlyOnce() {
+        long initialPayoutCount = payoutRepository.count();
         var now = LocalDateTime.now();
         payoutFacade.syncMember(new MemberDto(9001, now, now, "payout-test", "정산회원", 0));
         payoutFacade.syncMember(new MemberDto(9001, now, now, "payout-test", "수정회원", 10));
 
         var member = payoutMemberRepository.findById(9001).orElseThrow();
+        assertThat(payoutRepository.count()).isEqualTo(initialPayoutCount + 1);
+        assertThat(payoutRepository.findAll().stream()
+                .filter(payout -> payout.getPayee().getId() == 9001).count()).isEqualTo(1);
         assertThat(member.getNickname()).isEqualTo("수정회원");
         assertThat(member.getActivityScore()).isEqualTo(10);
         assertThat(applicationEvents.stream(PayoutMemberCreatedEvent.class)
