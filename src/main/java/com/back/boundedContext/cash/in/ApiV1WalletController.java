@@ -1,6 +1,7 @@
 package com.back.boundedContext.cash.in;
 
 import com.back.boundedContext.cash.app.CashFacade;
+import com.back.boundedContext.cash.domain.Wallet;
 import com.back.shared.cash.dto.WalletDto;
 import com.back.global.exception.DomainException;
 import lombok.RequiredArgsConstructor;
@@ -23,7 +24,7 @@ public class ApiV1WalletController {
     ) {
         return cashFacade
                 .findWalletByHolderId(holderId)
-                .map(WalletDto::new)
+                .map(Wallet::toDto)
                 .orElseThrow(() -> new DomainException("404-1", "지갑을 찾을 수 없습니다."));
     }
 }

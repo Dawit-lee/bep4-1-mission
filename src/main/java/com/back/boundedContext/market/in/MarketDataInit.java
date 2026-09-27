@@ -4,7 +4,6 @@ import com.back.boundedContext.market.app.MarketFacade;
 import com.back.boundedContext.market.domain.Cart;
 import com.back.boundedContext.market.domain.MarketMember;
 import com.back.boundedContext.market.domain.Product;
-import com.back.shared.market.dto.MarketMemberDto;
 import com.back.shared.post.dto.PostDto;
 import com.back.shared.post.out.PostApiClient;
 import lombok.extern.slf4j.Slf4j;
@@ -157,7 +156,7 @@ public class MarketDataInit {
 
     private Cart findOrCreateCart(MarketMember buyer) {
         return marketFacade.findCartByBuyer(buyer)
-                .orElseGet(() -> marketFacade.createCart(new MarketMemberDto(buyer)).getData());
+                .orElseGet(() -> marketFacade.createCart(buyer.toDto()).getData());
     }
 
     @Transactional

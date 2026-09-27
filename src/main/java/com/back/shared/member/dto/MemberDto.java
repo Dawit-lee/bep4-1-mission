@@ -1,6 +1,5 @@
 package com.back.shared.member.dto;
 
-import com.back.boundedContext.member.domain.Member;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 
@@ -15,15 +14,4 @@ public class MemberDto {
     private final String username;
     private final String nickname;
     private final int activityScore;
-
-    public MemberDto(Member member) {
-        this(
-                member.getId(),
-                member.getCreateDate(),
-                member.getModifyDate(),
-                member.getUsername(),
-                member.getNickname(),
-                member.getActivityScore()
-        );
-    }
 }
