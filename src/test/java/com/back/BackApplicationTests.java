@@ -7,6 +7,10 @@ import com.back.boundedContext.market.out.MarketMemberRepository;
 import com.back.boundedContext.market.out.OrderRepository;
 import com.back.boundedContext.cash.out.WalletRepository;
 import com.back.global.exception.DomainException;
+import com.back.boundedContext.payout.app.PayoutFacade;
+import com.back.boundedContext.payout.out.PayoutMemberRepository;
+import com.back.shared.payout.event.PayoutMemberCreatedEvent;
+import com.back.shared.market.event.MarketOrderPaymentCompletedEvent;
 import com.back.shared.cash.event.CashOrderPaymentFailedEvent;
 import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.context.event.ApplicationEvents;
@@ -67,6 +71,26 @@ class BackApplicationTests {
     @Autowired
     private ApplicationEvents applicationEvents;
 
+    @Autowired
+    private PayoutFacade payoutFacade;
+
+    @Autowired
+    private PayoutMemberRepository payoutMemberRepository;
+
+    @Test
+    @DirtiesContext(methodMode = DirtiesContext.MethodMode.AFTER_METHOD)
+    void createsPayoutMemberAndPublishesCreationOnlyOnce() {
+        var now = LocalDateTime.now();
+        payoutFacade.syncMember(new MemberDto(9001, now, now, "payout-test", "정산회원", 0));
+        payoutFacade.syncMember(new MemberDto(9001, now, now, "payout-test", "수정회원", 10));
+
+        var member = payoutMemberRepository.findById(9001).orElseThrow();
+        assertThat(member.getNickname()).isEqualTo("수정회원");
+        assertThat(member.getActivityScore()).isEqualTo(10);
+        assertThat(applicationEvents.stream(PayoutMemberCreatedEvent.class)
+                .filter(event -> event.getMember().getId() == 9001).count()).isEqualTo(1);
+    }
+
     @Test
     void initializesPaidOrderOnlyOnce() {
         var order = marketFacade.findOrderById(1).orElseThrow();
@@ -86,6 +110,10 @@ class BackApplicationTests {
         marketFacade.requestPayment(order, 0);
 
         assertThat(marketFacade.findOrderById(2).orElseThrow().isPaid()).isTrue();
+        var completedEvents = applicationEvents.stream(MarketOrderPaymentCompletedEvent.class)
+                .filter(event -> event.getOrder().getId() == 2).toList();
+        assertThat(completedEvents).hasSize(1);
+        assertThat(completedEvents.getFirst().getOrder().getPaymentDate()).isNotNull();
         assertThat(walletRepository.findByHolderId(5).orElseThrow().getBalance()).isEqualTo(105_000);
         assertThat(walletRepository.findByHolderId(2).orElseThrow().getBalance()).isEqualTo(115_000);
         assertThatThrownBy(() -> marketFacade.requestPayment(order, 0))
