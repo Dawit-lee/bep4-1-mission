@@ -12,11 +12,9 @@ import java.util.List;
 public class PostApiClient {
     private final RestClient restClient;
 
-    public PostApiClient(
-            @Value("${post.api.base-url:http://localhost:8080/api/v1/post}") String baseUrl
-    ) {
+    public PostApiClient(@Value("${custom.global.internalBackUrl}") String internalBackUrl) {
         this.restClient = RestClient.builder()
-                .baseUrl(baseUrl)
+                .baseUrl(internalBackUrl + "/api/v1/post")
                 .build();
     }
 

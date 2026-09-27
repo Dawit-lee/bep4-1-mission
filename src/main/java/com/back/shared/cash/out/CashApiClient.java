@@ -10,8 +10,10 @@ import org.springframework.web.client.RestClient;
 public class CashApiClient {
     private final RestClient restClient;
 
-    public CashApiClient(@Value("${cash.api.base-url:http://localhost:8080/api/v1/cash}") String baseUrl) {
-        restClient = RestClient.builder().baseUrl(baseUrl).build();
+    public CashApiClient(@Value("${custom.global.internalBackUrl}") String internalBackUrl) {
+        this.restClient = RestClient.builder()
+                .baseUrl(internalBackUrl + "/api/v1/cash")
+                .build();
     }
 
     public WalletDto getItemByHolderId(int holderId) {
