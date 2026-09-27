@@ -24,6 +24,7 @@ import com.back.boundedContext.market.in.MarketDataInit;
 import com.back.boundedContext.market.out.ProductRepository;
 import com.back.shared.post.dto.PostDto;
 import com.back.shared.post.out.PostApiClient;
+import com.back.shared.market.out.MarketApiClient;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -44,6 +45,29 @@ class BackApplicationTests {
 
     @Autowired
     private PostApiClient postApiClient;
+
+    @Autowired
+    private MarketApiClient marketApiClient;
+
+    @Test
+    @Transactional
+    void fetchesOrderItemsThroughMarketApi() {
+        var order = marketFacade.findOrderById(1).orElseThrow();
+        var items = marketApiClient.getOrderItems(1);
+        assertThat(items).hasSize(order.getItems().size()).isNotEmpty();
+        for (int i = 0; i < items.size(); i++) {
+            var actual = items.get(i);
+            var expected = order.getItems().stream()
+                    .filter(item -> item.getId() == actual.getId()).findFirst().orElseThrow().toDto();
+            assertThat(actual).usingRecursiveComparison().isEqualTo(expected);
+        }
+    }
+
+    @Test
+    void rejectsMissingOrderItemsRequest() {
+        assertThatThrownBy(() -> marketApiClient.getOrderItems(Integer.MAX_VALUE))
+                .isInstanceOf(org.springframework.web.client.HttpClientErrorException.NotFound.class);
+    }
 
     @Autowired
     private ProductRepository productRepository;

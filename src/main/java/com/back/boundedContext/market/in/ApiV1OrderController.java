@@ -2,6 +2,12 @@ package com.back.boundedContext.market.in;
 
 import com.back.boundedContext.market.app.MarketConfirmTossPaymentUseCase;
 import com.back.global.rsData.RsData;
+import com.back.global.exception.DomainException;
+import com.back.boundedContext.market.app.MarketFacade;
+import com.back.boundedContext.market.domain.OrderItem;
+import com.back.shared.market.dto.OrderItemDto;
+import org.springframework.transaction.annotation.Transactional;
+import java.util.List;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -15,6 +21,7 @@ import org.springframework.web.bind.annotation.*;
 @RequestMapping("/api/v1/market/orders")
 @RequiredArgsConstructor
 public class ApiV1OrderController {
+    private final MarketFacade marketFacade;
     private final MarketConfirmTossPaymentUseCase marketConfirmTossPaymentUseCase;
 
     public record ConfirmPaymentByTossPaymentsReqBody(
@@ -41,5 +48,15 @@ public class ApiV1OrderController {
         marketConfirmTossPaymentUseCase.confirm(id, reqBody.paymentKey(), reqBody.orderId(), reqBody.amount());
 
         return new RsData<>("202-1", "결제 프로세스가 시작되었습니다.");
+    }
+
+    @GetMapping("/{id}/items")
+    @Transactional(readOnly = true)
+    public List<OrderItemDto> getItems(@PathVariable int id) {
+        return marketFacade.findOrderById(id)
+                .orElseThrow(() -> new DomainException("404-1", "주문을 찾을 수 없습니다."))
+                .getItems().stream()
+                .map(OrderItem::toDto)
+                .toList();
     }
 }
