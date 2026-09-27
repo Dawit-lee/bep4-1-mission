@@ -10,6 +10,8 @@ import com.back.global.exception.DomainException;
 import com.back.boundedContext.payout.app.PayoutFacade;
 import com.back.boundedContext.payout.out.PayoutMemberRepository;
 import com.back.boundedContext.payout.out.PayoutRepository;
+import com.back.boundedContext.payout.out.PayoutCandidateItemRepository;
+import com.back.boundedContext.payout.domain.PayoutEventType;
 import com.back.shared.payout.event.PayoutMemberCreatedEvent;
 import com.back.shared.market.event.MarketOrderPaymentCompletedEvent;
 import com.back.shared.cash.event.CashOrderPaymentFailedEvent;
@@ -104,6 +106,41 @@ class BackApplicationTests {
 
     @Autowired
     private PayoutRepository payoutRepository;
+
+    @Autowired
+    private PayoutCandidateItemRepository payoutCandidateItemRepository;
+
+    @Test
+    @Transactional
+    void createsFeeAndSellerCandidatesForPaidOrderItems() {
+        var order = marketFacade.findOrderById(1).orElseThrow();
+        var candidates = payoutCandidateItemRepository.findAll();
+        assertThat(candidates).hasSize(order.getItems().size() * 2);
+        long total = 0;
+        for (var item : order.getItems()) {
+            var pair = candidates.stream().filter(candidate -> candidate.getRelId() == item.getId()).toList();
+            assertThat(pair).hasSize(2);
+            long sellerAmount = Math.round(item.getSalePrice() * item.getPayoutRate() / 100);
+            for (var candidate : pair) {
+                assertThat(candidate.getRelTypeCode()).isEqualTo("OrderItem");
+                assertThat(candidate.getPaymentDate()).isEqualTo(order.getPaymentDate());
+                assertThat(candidate.getPayer().getId()).isEqualTo(order.getBuyer().getId());
+                assertThat(candidate.getPayoutItem()).isNull();
+                if (candidate.getEventType() == PayoutEventType.정산__상품판매_수수료) {
+                    assertThat(candidate.getPayee().getUsername()).isEqualTo("system");
+                    assertThat(candidate.getAmount()).isEqualTo(item.getSalePrice() - sellerAmount);
+                } else {
+                    assertThat(candidate.getEventType()).isEqualTo(PayoutEventType.정산__상품판매_대금);
+                    assertThat(candidate.getPayee().getId()).isEqualTo(item.getProduct().getSeller().getId());
+                    assertThat(candidate.getAmount()).isEqualTo(sellerAmount);
+                }
+                total += candidate.getAmount();
+            }
+            assertThat(pair).extracting(candidate -> candidate.getEventType())
+                    .containsExactlyInAnyOrder(PayoutEventType.정산__상품판매_수수료, PayoutEventType.정산__상품판매_대금);
+        }
+        assertThat(total).isEqualTo(order.getSalePrice());
+    }
 
     @Test
     void initializesOneEmptyPayoutForEachMember() {
